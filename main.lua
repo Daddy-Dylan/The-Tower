@@ -2,10 +2,11 @@ local UserInputService = game:GetService("UserInputService")
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Daddy-Dylan/The-Tower/refs/heads/main/library.lua"))()
 
-local Window = Library:CreateWindow("THE TOWER", Vector2.new(492, 598), Enum.KeyCode.RightControl)
 local RunnerTab = Window:CreateTab("RUNNER")
 local VisualsTab = Window:CreateTab("VISUALS")
+local MiscTab = Window:CreateTab("MISC")
 local SniperTab = Window:CreateTab("SNIPER")
+
 local miscSection = MiscTab:CreateSector("Cursor Settings", "right")
 
 local CursorForced = false
@@ -265,25 +266,46 @@ visualsSection:AddToggle("Health Chams", false, function(state)
 end)
 game:GetService("RunService").Heartbeat:Connect(function() if Chams_Enabled then ApplyHealthChams() end end)
 
-local particlesSection = SniperTab:CreateSector("Particles", "right")
-local Particles_Enabled = false
-local Particle_Highlights = {}
-local function ApplyParticles()
-    if not Particles_Enabled then for _, hl in pairs(Particle_Highlights) do if hl and hl.Parent then hl:Destroy() end end Particle_Highlights = {} return end
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if (obj.Name == "Flare" or obj.Name == "EffectDropServer" or obj.Name == "SmokeVolume" or obj.Name == "SmokeGrenadeMesh" or obj.Name == "Glare") and obj:IsA("BasePart") and not Particle_Highlights[obj] then
-            local hl = Instance.new("Highlight")
-            hl.Parent = obj
-            hl.FillColor = Color3.fromRGB(255, 165, 0)
-            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-            hl.FillTransparency = 0.5
-            hl.OutlineTransparency = 0
-            Particle_Highlights[obj] = hl
-        end
-    end
-end
 particlesSection:AddToggle("Show Particles", false, function(state) Particles_Enabled = state ApplyParticles() end)
 game:GetService("RunService").Heartbeat:Connect(function() if Particles_Enabled then ApplyParticles() end end)
+
+-- AIMBOT SECTION
+local aimbotSection = SniperTab:CreateSector("Aimbot", "left")
+
+local AimbotEnabled = false
+local AimbotSmoothing = 0.2
+
+aimbotSection:AddToggle("Enable Aimbot", false, function(state)
+    AimbotEnabled = state
+end)
+
+aimbotSection:AddSlider("Smoothing", 0, 1, 100, 20, function(value)
+    AimbotSmoothing = value / 100
+end)
+
+local function GetClosestPlayerHead()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    local localPlayer = game.Players.LocalPlayer
+    local camera = workspace.CurrentCamera
+    
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("Humanoid") then
+            local humanoid = player.Character.Humanoid
+            if humanoid.Health > 0 then
+                local head = player.Character.Head
+                local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+                
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)).Magnitude
+                    if distance < shortestDistance then
+                        closestPlayer = head
+                        shortestDistance = distance
+                    end
+                end
+            end
+        end
+    end
     
     return closestPlayer
 end
@@ -302,6 +324,7 @@ game:GetService("RunService").RenderStepped:Connect(function()
     end
 end)
 
+-- PLAYER TP SECTION
 local playerTpSection = MiscTab:CreateSector("Player TP", "left")
 local selectedPlayerName = nil
 local playerDropdown
@@ -335,15 +358,14 @@ playerTpSection:AddButton("Teleport To Player", function()
     end
 end)
 
+playerTpSection:AddButton("Refresh Player List", function()
+    refreshPlayers()
+end)
+
 refreshPlayers()
+
 task.spawn(function()
-    while task.wait(1) do
+    while task.wait(5) do
         refreshPlayers()
     end
 end)
-game.Players.PlayerAdded:Connect(refreshPlayers)
-game.Players.PlayerRemoving:Connect(refreshPlayers)
-workspace.ChildAdded:Connect(refreshPlayers)
-workspace.ChildRemoved:Connect(refreshPlayers)
-
-MiscTab:CreateConfigSystem("right")
