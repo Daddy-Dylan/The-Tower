@@ -2,13 +2,20 @@ local UserInputService = game:GetService("UserInputService")
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Daddy-Dylan/The-Tower/refs/heads/main/library.lua"))()
 
+if not Library then
+    warn("Library failed to load!")
+    return
+end
+
+wait(0.5)
+
+local Window = Library:CreateWindow("THE TOWER", Vector2.new(492, 598), Enum.KeyCode.RightControl)
 local RunnerTab = Window:CreateTab("RUNNER")
 local VisualsTab = Window:CreateTab("VISUALS")
 local MiscTab = Window:CreateTab("MISC")
 local SniperTab = Window:CreateTab("SNIPER")
 
 local miscSection = MiscTab:CreateSector("Cursor Settings", "right")
-
 local CursorForced = false
 local ToggleKey = Enum.KeyCode.LeftAlt 
 
