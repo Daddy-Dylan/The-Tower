@@ -273,8 +273,40 @@ visualsSection:AddToggle("Health Chams", false, function(state)
 end)
 game:GetService("RunService").Heartbeat:Connect(function() if Chams_Enabled then ApplyHealthChams() end end)
 
-particlesSection:AddToggle("Show Particles", false, function(state) Particles_Enabled = state ApplyParticles() end)
-game:GetService("RunService").Heartbeat:Connect(function() if Particles_Enabled then ApplyParticles() end end)
+-- PARTICLES SECTION
+local particlesSection = SniperTab:CreateSector("Particles", "right")
+local Particles_Enabled = false
+local Particle_Highlights = {}
+
+local function ApplyParticles()
+    if not Particles_Enabled then 
+        for _, hl in pairs(Particle_Highlights) do 
+            if hl and hl.Parent then hl:Destroy() end 
+        end 
+        Particle_Highlights = {} 
+        return 
+    end
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if (obj.Name == "Flare" or obj.Name == "EffectDropServer" or obj.Name == "SmokeVolume" or obj.Name == "SmokeGrenadeMesh" or obj.Name == "Glare") and obj:IsA("BasePart") and not Particle_Highlights[obj] then
+            local hl = Instance.new("Highlight")
+            hl.Parent = obj
+            hl.FillColor = Color3.fromRGB(255, 165, 0)
+            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+            hl.FillTransparency = 0.5
+            hl.OutlineTransparency = 0
+            Particle_Highlights[obj] = hl
+        end
+    end
+end
+
+particlesSection:AddToggle("Show Particles", false, function(state) 
+    Particles_Enabled = state 
+    ApplyParticles() 
+end)
+
+game:GetService("RunService").Heartbeat:Connect(function() 
+    if Particles_Enabled then ApplyParticles() end 
+end)
 
 -- AIMBOT SECTION
 local aimbotSection = SniperTab:CreateSector("Aimbot", "left")
