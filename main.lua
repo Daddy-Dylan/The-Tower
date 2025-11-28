@@ -1,15 +1,37 @@
 local UserInputService = game:GetService("UserInputService")
-game:GetService("RunService").RenderStepped:Connect(function()
-    UserInputService.MouseIconEnabled = true
-end)
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Daddy-Dylan/The-Tower/refs/heads/main/library.lua"))()
 
 local Window = Library:CreateWindow("THE TOWER", Vector2.new(492, 598), Enum.KeyCode.RightControl)
 local RunnerTab = Window:CreateTab("RUNNER")
 local VisualsTab = Window:CreateTab("VISUALS")
-local MiscTab = Window:CreateTab("MISC")
 local SniperTab = Window:CreateTab("SNIPER")
+local miscSection = MiscTab:CreateSector("Cursor Settings", "right")
+
+local CursorForced = false
+local ToggleKey = Enum.KeyCode.LeftAlt 
+
+miscSection:AddToggle("Force Cursor (Disable Shift-Lock)", false, function(state)
+    CursorForced = state
+end)
+
+miscSection:AddKeybind("Toggle Cursor Key", ToggleKey, function(key)
+    ToggleKey = key
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == ToggleKey then
+        CursorForced = not CursorForced
+        print("Cursor Force:", CursorForced and "ON (No Shift-Lock)" or "OFF (Shift-Lock Works)")
+    end
+end)
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    if CursorForced then
+        UserInputService.MouseIconEnabled = true
+    end
+end)
 
 local flareSection = RunnerTab:CreateSector("Flares", "left")
 local flareOptions, flareParts, selectedFlare, flareHighlight = {}, {}, nil, nil
