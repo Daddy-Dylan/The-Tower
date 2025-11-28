@@ -322,6 +322,8 @@ aimbotSection:AddSlider("Smoothing", 0, 1, 100, 20, function(value)
     AimbotSmoothing = value / 100
 end)
 
+aimbotSection:AddLabel("Currently not working, sorry! I'll fix it later probably.")
+
 local function GetClosestPlayerHead()
     local closestPlayer = nil
     local shortestDistance = math.huge
