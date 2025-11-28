@@ -371,7 +371,7 @@ local function GetAnglesToTarget(targetPos)
 end
 
 game:GetService("RunService").RenderStepped:Connect(function()
-    if AimbotEnabled and localPlayer.Team == game.Teams.Sniper then
+    if AimbotEnabled and game.Players.LocalPlayer.Team == game.Teams.Sniper then
         local target = GetClosestEnemyHead()
         if target then
             local targetX, targetY = GetAnglesToTarget(target.Position)
