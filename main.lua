@@ -9,7 +9,7 @@ end
 
 wait(0.5)
 
-local Window = Library:CreateWindow("THE TOWER", Vector2.new(492, 598), Enum.KeyCode.RightControl)
+local Window = Library:CreateWindow("Daddy's Ez Hub...", Vector2.new(492, 598), Enum.KeyCode.RightControl)
 local RunnerTab = Window:CreateTab("RUNNER")
 local VisualsTab = Window:CreateTab("VISUALS")
 local MiscTab = Window:CreateTab("MISC")
