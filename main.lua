@@ -309,7 +309,7 @@ game:GetService("RunService").Heartbeat:Connect(function()
 end)
 
 -- AIMBOT SECTION
-local aimbotSection = SniperTab:CreateSector("Aimbot", "left")
+local aimbotSection = SniperTab:CreateSector("Aimbot", "right")
 
 local AimbotEnabled = false
 local AimbotSmoothing = 0.2
