@@ -285,6 +285,60 @@ end
 particlesSection:AddToggle("Show Particles", false, function(state) Particles_Enabled = state ApplyParticles() end)
 game:GetService("RunService").Heartbeat:Connect(function() if Particles_Enabled then ApplyParticles() end end)
 
+local aimbotSection = SniperTab:CreateSector("Aimbot", "left")
+
+local AimbotEnabled = false
+local AimbotSmoothing = 0.2
+
+aimbotSection:AddToggle("Enable Aimbot", false, function(state)
+    AimbotEnabled = state
+end)
+
+aimbotSection:AddSlider("Smoothing", 0, 1, 100, 20, function(value)
+    AimbotSmoothing = value / 100
+end)
+
+local function GetClosestPlayerHead()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    local localPlayer = game.Players.LocalPlayer
+    local camera = workspace.CurrentCamera
+    
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("Humanoid") then
+            local humanoid = player.Character.Humanoid
+            if humanoid.Health > 0 then
+                local head = player.Character.Head
+                local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+                
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)).Magnitude
+                    if distance < shortestDistance then
+                        closestPlayer = head
+                        shortestDistance = distance
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    if AimbotEnabled then
+        local target = GetClosestPlayerHead()
+        if target then
+            local camera = workspace.CurrentCamera
+            local targetPos = target.Position
+            local currentCFrame = camera.CFrame
+            local targetCFrame = CFrame.new(camera.CFrame.Position, targetPos)
+            
+            camera.CFrame = currentCFrame:Lerp(targetCFrame, AimbotSmoothing)
+        end
+    end
+end)
+
 local playerTpSection = MiscTab:CreateSector("Player TP", "left")
 local selectedPlayerName = nil
 local playerDropdown
