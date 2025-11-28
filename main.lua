@@ -309,7 +309,9 @@ game:GetService("RunService").Heartbeat:Connect(function()
 end)
 
 -- AIMBOT SECTION
-local aimbotSection = SniperTab:CreateSector("Aimbot", "right")
+local aimbotSection = SniperTab:CreateSector("Aimbot", "left")
+
+aimbotSection:AddLabel("Auto-aim at closest enemy head")
 
 local AimbotEnabled = false
 local AimbotSmoothing = 0.2
