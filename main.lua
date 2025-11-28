@@ -1,3 +1,8 @@
+local UserInputService = game:GetService("UserInputService")
+game:GetService("RunService").RenderStepped:Connect(function()
+    UserInputService.MouseIconEnabled = true
+end)
+
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Daddy-Dylan/The-Tower/refs/heads/main/library.lua"))()
 
 local Window = Library:CreateWindow("THE TOWER", Vector2.new(492, 598), Enum.KeyCode.RightControl)
