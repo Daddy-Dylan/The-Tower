@@ -313,6 +313,8 @@ local aimbotSection = SniperTab:CreateSector("Aimbot", "left")
 
 local AimbotEnabled = false
 local AimbotSmoothing = 0.2
+local CameraRotation = require(game:GetService("Players").LocalPlayer.PlayerScripts.CameraScripts.Camera.CameraRotation)
+local Turret = require(game.ReplicatedStorage.Turret)
 
 aimbotSection:AddToggle("Enable Aimbot", false, function(state)
     AimbotEnabled = state
@@ -322,25 +324,28 @@ aimbotSection:AddSlider("Smoothing", 0, 1, 100, 20, function(value)
     AimbotSmoothing = value / 100
 end)
 
-aimbotSection:AddLabel("Currently not working, sorry! I'll fix it later probably.")
-
-local function GetClosestPlayerHead()
-    local closestPlayer = nil
+local function GetClosestEnemyHead()
+    local closestHead = nil
     local shortestDistance = math.huge
     local localPlayer = game.Players.LocalPlayer
     local camera = workspace.CurrentCamera
+    local sniperPos = Turret.SniperCFrame.Position
     
     for _, player in pairs(game.Players:GetPlayers()) do
-        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("Humanoid") then
-            local humanoid = player.Character.Humanoid
-            if humanoid.Health > 0 then
-                local head = player.Character.Head
-                local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+        -- Only target runners (enemies)
+        if player ~= localPlayer and player.Team == game.Teams.Runner and player.Character then
+            local head = player.Character:FindFirstChild("Head")
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            
+            if head and humanoid and humanoid.Health > 0 then
+                -- Check if visible (raycast from sniper to head)
+                local direction = (head.Position - sniperPos).Unit
+                local ray = workspace:Raycast(sniperPos, direction * (head.Position - sniperPos).Magnitude, RaycastParams.new())
                 
-                if onScreen then
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)).Magnitude
+                if ray and ray.Instance:IsDescendantOf(player.Character) then
+                    local distance = (head.Position - sniperPos).Magnitude
                     if distance < shortestDistance then
-                        closestPlayer = head
+                        closestHead = head
                         shortestDistance = distance
                     end
                 end
@@ -348,19 +353,36 @@ local function GetClosestPlayerHead()
         end
     end
     
-    return closestPlayer
+    return closestHead
+end
+
+local function GetAnglesToTarget(targetPos)
+    local sniperCFrame = Turret.SniperCFrame
+    local sniperPos = sniperCFrame.Position
+    
+    -- Calculate direction vector
+    local direction = (targetPos - sniperPos).Unit
+    
+    -- Convert to camera angles (pitch and yaw)
+    local x = math.asin(direction.Y) -- Pitch (up/down)
+    local y = math.atan2(direction.X, -direction.Z) -- Yaw (left/right)
+    
+    return x, y
 end
 
 game:GetService("RunService").RenderStepped:Connect(function()
-    if AimbotEnabled then
-        local target = GetClosestPlayerHead()
+    if AimbotEnabled and localPlayer.Team == game.Teams.Sniper then
+        local target = GetClosestEnemyHead()
         if target then
-            local camera = workspace.CurrentCamera
-            local targetPos = target.Position
-            local currentCFrame = camera.CFrame
-            local targetCFrame = CFrame.new(camera.CFrame.Position, targetPos)
+            local targetX, targetY = GetAnglesToTarget(target.Position)
+            local currentX, currentY = CameraRotation:GetTwoAxis()
             
-            camera.CFrame = currentCFrame:Lerp(targetCFrame, AimbotSmoothing)
+            -- Smoothly interpolate to target angles
+            local newX = currentX + (targetX - currentX) * AimbotSmoothing
+            local newY = currentY + (targetY - currentY) * AimbotSmoothing
+            
+            -- Set camera rotation
+            CameraRotation:SetRotation(newX, newY)
         end
     end
 end)
