@@ -315,9 +315,20 @@ aimbotSection:AddLabel("Auto-aim at closest enemy head")
 
 local AimbotEnabled = false
 local AimbotSmoothing = 0.2
+
+aimbotSection:AddToggle("Enable Aimbot", false, function(state)
+    AimbotEnabled = state
+end)
+
+aimbotSection:AddSlider("Smoothing", 0, 1, 100, 20, function(value)
+    AimbotSmoothing = value / 100
+end)
+
+-- Load modules AFTER UI is created
 local CameraRotation = require(game:GetService("Players").LocalPlayer.PlayerScripts.CameraScripts.Camera.CameraRotation)
 local Turret = require(game.ReplicatedStorage.Turret)
 
+local function GetClosestEnemyHead()
 aimbotSection:AddToggle("Enable Aimbot", false, function(state)
     AimbotEnabled = state
 end)
