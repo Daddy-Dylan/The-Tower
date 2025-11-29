@@ -1,7 +1,6 @@
 local UserInputService = game:GetService("UserInputService")
 
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Daddy-Dylan/The-Tower/refs/heads/main/library.lua"))()
-
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Daddy-Dylan/The-Tower/main/library.lua", true))()
 if not Library then
     warn("Library failed to load!")
     return
