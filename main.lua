@@ -324,20 +324,35 @@ aimbotSection:AddSlider("Smoothing", 0, 1, 100, 20, function(value)
     AimbotSmoothing = value / 100
 end)
 
--- Load modules AFTER UI is created
-local CameraRotation = require(game:GetService("Players").LocalPlayer.PlayerScripts.CameraScripts.Camera.CameraRotation)
-local Turret = require(game.ReplicatedStorage.Turret)
+-- Try to load modules safely
+local CameraRotation = nil
+local Turret = nil
 
-local function GetClosestEnemyHead()
-aimbotSection:AddToggle("Enable Aimbot", false, function(state)
-    AimbotEnabled = state
+local success1, result1 = pcall(function()
+    return require(game:GetService("Players").LocalPlayer.PlayerScripts.CameraScripts.Camera.CameraRotation)
 end)
 
-aimbotSection:AddSlider("Smoothing", 0, 1, 100, 20, function(value)
-    AimbotSmoothing = value / 100
+local success2, result2 = pcall(function()
+    return require(game.ReplicatedStorage.Turret)
 end)
 
+if success1 then
+    CameraRotation = result1
+else
+    warn("Failed to load CameraRotation:", result1)
+    aimbotSection:AddLabel("ERROR: CameraRotation not found")
+end
+
+if success2 then
+    Turret = result2
+else
+    warn("Failed to load Turret:", result2)
+    aimbotSection:AddLabel("ERROR: Turret module not found")
+end
+
 local function GetClosestEnemyHead()
+    if not Turret then return nil end
+    
     local closestHead = nil
     local shortestDistance = math.huge
     local localPlayer = game.Players.LocalPlayer
@@ -370,6 +385,8 @@ local function GetClosestEnemyHead()
 end
 
 local function GetAnglesToTarget(targetPos)
+    if not Turret then return 0, 0 end
+    
     local sniperCFrame = Turret.SniperCFrame
     local sniperPos = sniperCFrame.Position
     
@@ -384,7 +401,7 @@ local function GetAnglesToTarget(targetPos)
 end
 
 game:GetService("RunService").RenderStepped:Connect(function()
-    if AimbotEnabled and game.Players.LocalPlayer.Team == game.Teams.Sniper then
+    if AimbotEnabled and CameraRotation and Turret and game.Players.LocalPlayer.Team == game.Teams.Sniper then
         local target = GetClosestEnemyHead()
         if target then
             local targetX, targetY = GetAnglesToTarget(target.Position)
