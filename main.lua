@@ -74,7 +74,6 @@ flareSection:AddButton("TP TO FLARE", function()
 end)
 flareSection:AddButton("RESCAN FLARES", function()
     scanFlares()
-    flareDropdown:Refresh(flareOptions, flareOptions[1] or "None")
 end)
 
 local runnerSection = RunnerTab:CreateSector("Teleports", "right")
