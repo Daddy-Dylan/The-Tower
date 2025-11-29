@@ -307,11 +307,12 @@ end)
 game:GetService("RunService").Heartbeat:Connect(function() 
     if Particles_Enabled then ApplyParticles() end 
 end)
-
 -- AIMBOT SECTION
 local aimbotSection = SniperTab:CreateSector("Aimbot", "left")
+print("Aimbot sector created:", aimbotSection)
 
 aimbotSection:AddLabel("Auto-aim at closest enemy head")
+print("Label added")
 
 local AimbotEnabled = false
 local AimbotSmoothing = 0.2
@@ -319,10 +320,12 @@ local AimbotSmoothing = 0.2
 aimbotSection:AddToggle("Enable Aimbot", false, function(state)
     AimbotEnabled = state
 end)
+print("Toggle added")
 
 aimbotSection:AddSlider("Smoothing", 0, 1, 100, 20, function(value)
     AimbotSmoothing = value / 100
 end)
+print("Slider added")
 
 -- Try to load modules safely
 local CameraRotation = nil
@@ -338,6 +341,7 @@ end)
 
 if success1 then
     CameraRotation = result1
+    print("CameraRotation loaded successfully")
 else
     warn("Failed to load CameraRotation:", result1)
     aimbotSection:AddLabel("ERROR: CameraRotation not found")
@@ -345,6 +349,7 @@ end
 
 if success2 then
     Turret = result2
+    print("Turret loaded successfully")
 else
     warn("Failed to load Turret:", result2)
     aimbotSection:AddLabel("ERROR: Turret module not found")
