@@ -80,6 +80,8 @@ end)
 local runnerSection = RunnerTab:CreateSector("Teleports", "right")
 local function createTeleport(title, targetNames, innerTarget, color)
     local options, parts, selected, highlight = {}, {}, nil, nil
+    local dropdown = nil
+    
     local function scanTargets()
         options, parts = {}, {}
         for _, obj in pairs(workspace:GetDescendants()) do
@@ -91,19 +93,25 @@ local function createTeleport(title, targetNames, innerTarget, color)
             end
         end
         selected = parts[1]
-    end
-    scanTargets()
-    local dropdown = runnerSection:AddDropdown(title .. " List", options, options[1] or "None", false, function(choice)
-        for i, path in ipairs(options) do
-            if path == choice then
-                selected = parts[i]
-                if highlight then highlight:Destroy() end
-                highlight = Instance.new("Highlight", selected)
-                highlight.FillColor = color
-                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-            end
+        
+        -- Only create dropdown once
+        if not dropdown then
+            dropdown = runnerSection:AddDropdown(title .. " List", options, options[1] or "None", false, function(choice)
+                for i, path in ipairs(options) do
+                    if path == choice then
+                        selected = parts[i]
+                        if highlight then highlight:Destroy() end
+                        highlight = Instance.new("Highlight", selected)
+                        highlight.FillColor = color
+                        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    end
+                end
+            end)
         end
-    end)
+    end
+    
+    scanTargets()
+    
     runnerSection:AddButton("TP TO " .. title, function()
         pcall(function()
             local char = game.Players.LocalPlayer.Character
@@ -118,15 +126,9 @@ local function createTeleport(title, targetNames, innerTarget, color)
             end
         end)
     end)
+    
     runnerSection:AddButton("RESCAN " .. title, function()
         scanTargets()
-        dropdown:Refresh(options, options[1] or "None")
-    end)
-    task.spawn(function()
-        while task.wait(10) do
-            scanTargets()
-            dropdown:Refresh(options, options[1] or "None")
-        end
     end)
 end
 
