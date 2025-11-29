@@ -325,67 +325,36 @@ aimbotSection:AddSlider("Smoothing", 0, 1, 100, 20, function(value)
     AimbotSmoothing = value / 100
 end)
 
--- Try to load modules safely
+-- Try to load CameraRotation module
 local CameraRotation = nil
-local Turret = nil
 
-local success1, result1 = pcall(function()
+local success, result = pcall(function()
     return require(game:GetService("Players").LocalPlayer.PlayerScripts.Leglo.Camera.CameraRotation)
 end)
 
--- Turret module seems broken, let's try to get SniperCFrame another way
-local success2, result2 = pcall(function()
-    local turretModule = game.ReplicatedStorage.Turret
-    -- Try to read it without requiring
-    return turretModule
-end)
-
-if success1 then
-    CameraRotation = result1
+if success then
+    CameraRotation = result
     print("✅ CameraRotation loaded")
+    aimbotSection:AddLabel("✅ Aimbot ready!")
 else
-    warn("❌ CameraRotation failed:", result1)
-    aimbotSection:AddLabel("ERROR: Camera not found")
-end
-
--- Since Turret module is broken, let's find the sniper manually
-local SniperModel = nil
-local function FindSniper()
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj.Name == "Sniper" and obj:IsA("Model") then
-            SniperModel = obj
-            return true
-        end
-    end
-    return false
-end
-
-if FindSniper() then
-    print("✅ Found Sniper model in workspace")
-    aimbotSection:AddLabel("Sniper found!")
-else
-    warn("❌ Sniper model not found")
-    aimbotSection:AddLabel("ERROR: Join sniper team first")
+    warn("❌ CameraRotation failed:", result)
+    aimbotSection:AddLabel("ERROR: Camera module not found")
 end
 
 local function GetClosestEnemyHead()
-    if not SniperModel then 
-        FindSniper()
-        if not SniperModel then return nil end
-    end
-    
-    local sniperPos = SniperModel:GetPivot().Position
     local closestHead = nil
     local shortestDistance = math.huge
     local localPlayer = game.Players.LocalPlayer
+    local camera = workspace.CurrentCamera
     
     for _, player in pairs(game.Players:GetPlayers()) do
+        -- Only target runners (enemies)
         if player ~= localPlayer and player.Team == game.Teams.Runner and player.Character then
             local head = player.Character:FindFirstChild("Head")
             local humanoid = player.Character:FindFirstChild("Humanoid")
             
             if head and humanoid and humanoid.Health > 0 then
-                local distance = (head.Position - sniperPos).Magnitude
+                local distance = (head.Position - camera.CFrame.Position).Magnitude
                 if distance < shortestDistance then
                     closestHead = head
                     shortestDistance = distance
@@ -398,13 +367,11 @@ local function GetClosestEnemyHead()
 end
 
 local function GetAnglesToTarget(targetPos)
-    if not SniperModel then return 0, 0 end
-    
-    local sniperCFrame = SniperModel:GetPivot()
-    local sniperPos = sniperCFrame.Position
+    local camera = workspace.CurrentCamera
+    local cameraPos = camera.CFrame.Position
     
     -- Calculate direction vector
-    local direction = (targetPos - sniperPos).Unit
+    local direction = (targetPos - cameraPos).Unit
     
     -- Convert to camera angles (pitch and yaw)
     local x = math.asin(direction.Y)
