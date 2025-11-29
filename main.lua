@@ -325,21 +325,7 @@ aimbotSection:AddSlider("Smoothing", 0, 1, 100, 20, function(value)
     AimbotSmoothing = value / 100
 end)
 
--- Try to load CameraRotation module
-local CameraRotation = nil
-
-local success, result = pcall(function()
-    return require(game:GetService("Players").LocalPlayer.PlayerScripts.Leglo.Camera.CameraRotation)
-end)
-
-if success then
-    CameraRotation = result
-    print("✅ CameraRotation loaded")
-    aimbotSection:AddLabel("✅ Aimbot ready!")
-else
-    warn("❌ CameraRotation failed:", result)
-    aimbotSection:AddLabel("ERROR: Camera module not found")
-end
+aimbotSection:AddLabel("✅ Aimbot ready!")
 
 local function GetClosestEnemyHead()
     local closestHead = nil
@@ -354,10 +340,14 @@ local function GetClosestEnemyHead()
             local humanoid = player.Character:FindFirstChild("Humanoid")
             
             if head and humanoid and humanoid.Health > 0 then
-                local distance = (head.Position - camera.CFrame.Position).Magnitude
-                if distance < shortestDistance then
-                    closestHead = head
-                    shortestDistance = distance
+                -- Check if on screen (in front of camera)
+                local screenPos, onScreen = camera:WorldToScreenPoint(head.Position)
+                if onScreen then
+                    local distance = (head.Position - camera.CFrame.Position).Magnitude
+                    if distance < shortestDistance then
+                        closestHead = head
+                        shortestDistance = distance
+                    end
                 end
             end
         end
@@ -366,33 +356,15 @@ local function GetClosestEnemyHead()
     return closestHead
 end
 
-local function GetAnglesToTarget(targetPos)
-    local camera = workspace.CurrentCamera
-    local cameraPos = camera.CFrame.Position
-    
-    -- Calculate direction vector
-    local direction = (targetPos - cameraPos).Unit
-    
-    -- Convert to camera angles (pitch and yaw)
-    local x = math.asin(direction.Y)
-    local y = math.atan2(direction.X, -direction.Z)
-    
-    return x, y
-end
-
 game:GetService("RunService").RenderStepped:Connect(function()
-    if AimbotEnabled and CameraRotation and game.Players.LocalPlayer.Team == game.Teams.Sniper then
+    if AimbotEnabled and game.Players.LocalPlayer.Team == game.Teams.Sniper then
         local target = GetClosestEnemyHead()
         if target then
-            local targetX, targetY = GetAnglesToTarget(target.Position)
-            local currentX, currentY = CameraRotation:GetTwoAxis()
+            local camera = workspace.CurrentCamera
+            local targetCFrame = CFrame.new(camera.CFrame.Position, target.Position)
             
-            -- Smoothly interpolate to target angles
-            local newX = currentX + (targetX - currentX) * AimbotSmoothing
-            local newY = currentY + (targetY - currentY) * AimbotSmoothing
-            
-            -- Set camera rotation
-            CameraRotation:SetRotation(newX, newY)
+            -- Smoothly interpolate camera
+            camera.CFrame = camera.CFrame:Lerp(targetCFrame, AimbotSmoothing)
         end
     end
 end)
