@@ -317,13 +317,14 @@ local AimbotSmoothing = 0.2
 
 aimbotSection:AddToggle("Enable Aimbot", false, function(state)
     AimbotEnabled = state
+    print("Aimbot:", state and "ON" or "OFF")
 end)
 
 aimbotSection:AddSlider("Smoothing", 0, 1, 100, 20, function(value)
     AimbotSmoothing = value / 100
 end)
 
--- Try to load modules safely with CORRECT paths
+-- Try to load modules safely
 local CameraRotation = nil
 local Turret = nil
 
@@ -331,52 +332,62 @@ local success1, result1 = pcall(function()
     return require(game:GetService("Players").LocalPlayer.PlayerScripts.Leglo.Camera.CameraRotation)
 end)
 
+-- Turret module seems broken, let's try to get SniperCFrame another way
 local success2, result2 = pcall(function()
-    return require(game.ReplicatedStorage.Turret)
+    local turretModule = game.ReplicatedStorage.Turret
+    -- Try to read it without requiring
+    return turretModule
 end)
 
 if success1 then
     CameraRotation = result1
-    print("✅ CameraRotation loaded successfully")
+    print("✅ CameraRotation loaded")
 else
-    warn("❌ Failed to load CameraRotation:", result1)
-    aimbotSection:AddLabel("ERROR: CameraRotation not found")
+    warn("❌ CameraRotation failed:", result1)
+    aimbotSection:AddLabel("ERROR: Camera not found")
 end
 
-if success2 then
-    Turret = result2
-    print("✅ Turret loaded successfully")
+-- Since Turret module is broken, let's find the sniper manually
+local SniperModel = nil
+local function FindSniper()
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj.Name == "Sniper" and obj:IsA("Model") then
+            SniperModel = obj
+            return true
+        end
+    end
+    return false
+end
+
+if FindSniper() then
+    print("✅ Found Sniper model in workspace")
+    aimbotSection:AddLabel("Sniper found!")
 else
-    warn("❌ Failed to load Turret:", result2)
-    aimbotSection:AddLabel("ERROR: Turret module not found")
+    warn("❌ Sniper model not found")
+    aimbotSection:AddLabel("ERROR: Join sniper team first")
 end
 
 local function GetClosestEnemyHead()
-    if not Turret then return nil end
+    if not SniperModel then 
+        FindSniper()
+        if not SniperModel then return nil end
+    end
     
+    local sniperPos = SniperModel:GetPivot().Position
     local closestHead = nil
     local shortestDistance = math.huge
     local localPlayer = game.Players.LocalPlayer
-    local camera = workspace.CurrentCamera
-    local sniperPos = Turret.SniperCFrame.Position
     
     for _, player in pairs(game.Players:GetPlayers()) do
-        -- Only target runners (enemies)
         if player ~= localPlayer and player.Team == game.Teams.Runner and player.Character then
             local head = player.Character:FindFirstChild("Head")
             local humanoid = player.Character:FindFirstChild("Humanoid")
             
             if head and humanoid and humanoid.Health > 0 then
-                -- Check if visible (raycast from sniper to head)
-                local direction = (head.Position - sniperPos).Unit
-                local ray = workspace:Raycast(sniperPos, direction * (head.Position - sniperPos).Magnitude, RaycastParams.new())
-                
-                if ray and ray.Instance:IsDescendantOf(player.Character) then
-                    local distance = (head.Position - sniperPos).Magnitude
-                    if distance < shortestDistance then
-                        closestHead = head
-                        shortestDistance = distance
-                    end
+                local distance = (head.Position - sniperPos).Magnitude
+                if distance < shortestDistance then
+                    closestHead = head
+                    shortestDistance = distance
                 end
             end
         end
@@ -386,23 +397,23 @@ local function GetClosestEnemyHead()
 end
 
 local function GetAnglesToTarget(targetPos)
-    if not Turret then return 0, 0 end
+    if not SniperModel then return 0, 0 end
     
-    local sniperCFrame = Turret.SniperCFrame
+    local sniperCFrame = SniperModel:GetPivot()
     local sniperPos = sniperCFrame.Position
     
     -- Calculate direction vector
     local direction = (targetPos - sniperPos).Unit
     
     -- Convert to camera angles (pitch and yaw)
-    local x = math.asin(direction.Y) -- Pitch (up/down)
-    local y = math.atan2(direction.X, -direction.Z) -- Yaw (left/right)
+    local x = math.asin(direction.Y)
+    local y = math.atan2(direction.X, -direction.Z)
     
     return x, y
 end
 
 game:GetService("RunService").RenderStepped:Connect(function()
-    if AimbotEnabled and CameraRotation and Turret and game.Players.LocalPlayer.Team == game.Teams.Sniper then
+    if AimbotEnabled and CameraRotation and game.Players.LocalPlayer.Team == game.Teams.Sniper then
         local target = GetClosestEnemyHead()
         if target then
             local targetX, targetY = GetAnglesToTarget(target.Position)
@@ -417,28 +428,22 @@ game:GetService("RunService").RenderStepped:Connect(function()
         end
     end
 end)
--- PLAYER TP SECTION
+
+-- PLAYER TP SECTION (FIXED - removed Refresh calls)
 local playerTpSection = MiscTab:CreateSector("Player TP", "left")
 local selectedPlayerName = nil
-local playerDropdown
 
-local function refreshPlayers()
-    local list = {}
-    for _, obj in pairs(workspace:GetChildren()) do
-        if obj:IsA("Model") and game.Players:FindFirstChild(obj.Name) and obj.Name ~= game.Players.LocalPlayer.Name then
-            table.insert(list, obj.Name)
-        end
-    end
-    table.sort(list)
-
-    if not playerDropdown then
-        playerDropdown = playerTpSection:AddDropdown("Select Player", list, list[1] or "No players", false, function(name)
-            selectedPlayerName = name
-        end)
-    else
-        playerDropdown:Refresh(list, list[1] or "No players")
+local playerList = {}
+for _, obj in pairs(workspace:GetChildren()) do
+    if obj:IsA("Model") and game.Players:FindFirstChild(obj.Name) and obj.Name ~= game.Players.LocalPlayer.Name then
+        table.insert(playerList, obj.Name)
     end
 end
+table.sort(playerList)
+
+local playerDropdown = playerTpSection:AddDropdown("Select Player", playerList, playerList[1] or "No players", false, function(name)
+    selectedPlayerName = name
+end)
 
 playerTpSection:AddButton("Teleport To Player", function()
     if not selectedPlayerName then return end
@@ -448,17 +453,5 @@ playerTpSection:AddButton("Teleport To Player", function()
         if lp:FindFirstChild("HumanoidRootPart") then
             lp.HumanoidRootPart.CFrame = target.Head.CFrame + Vector3.new(0, 3, 0)
         end
-    end
-end)
-
-playerTpSection:AddButton("Refresh Player List", function()
-    refreshPlayers()
-end)
-
-refreshPlayers()
-
-task.spawn(function()
-    while task.wait(5) do
-        refreshPlayers()
     end
 end)
