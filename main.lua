@@ -308,9 +308,7 @@ game:GetService("RunService").Heartbeat:Connect(function()
     if Particles_Enabled then ApplyParticles() end 
 end)
 
--- AIMBOT DIAGNOSTIC
-local aimbotSection = SniperTab:CreateSector("Aimbot", "left")
-
+-- AIMBOT DIAGNOSTIC (add this to your aimbot section)
 aimbotSection:AddButton("Test Target Detection", function()
     print("=== TARGET DETECTION TEST ===")
     local localPlayer = game.Players.LocalPlayer
