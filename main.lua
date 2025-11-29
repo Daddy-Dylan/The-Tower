@@ -308,65 +308,28 @@ game:GetService("RunService").Heartbeat:Connect(function()
     if Particles_Enabled then ApplyParticles() end 
 end)
 
--- AIMBOT SECTION
+-- AIMBOT DIAGNOSTIC
 local aimbotSection = SniperTab:CreateSector("Aimbot", "left")
 
-aimbotSection:AddLabel("Auto-aim at closest enemy head")
-
-local AimbotEnabled = false
-local AimbotSmoothing = 0.2
-
-aimbotSection:AddToggle("Enable Aimbot", false, function(state)
-    AimbotEnabled = state
-    print("Aimbot:", state and "ON" or "OFF")
-end)
-
-aimbotSection:AddSlider("Smoothing", 0, 1, 100, 20, function(value)
-    AimbotSmoothing = value / 100
-end)
-
-aimbotSection:AddLabel("✅ Aimbot ready!")
-
-local function GetClosestEnemyHead()
-    local closestHead = nil
-    local shortestDistance = math.huge
+aimbotSection:AddButton("Test Target Detection", function()
+    print("=== TARGET DETECTION TEST ===")
     local localPlayer = game.Players.LocalPlayer
-    local camera = workspace.CurrentCamera
+    print("My team:", localPlayer.Team.Name)
     
     for _, player in pairs(game.Players:GetPlayers()) do
-        -- Only target runners (enemies)
-        if player ~= localPlayer and player.Team == game.Teams.Runner and player.Character then
+        print("Player:", player.Name, "Team:", player.Team and player.Team.Name or "NO TEAM")
+        if player.Character then
             local head = player.Character:FindFirstChild("Head")
             local humanoid = player.Character:FindFirstChild("Humanoid")
-            
-            if head and humanoid and humanoid.Health > 0 then
-                -- Check if on screen (in front of camera)
-                local screenPos, onScreen = camera:WorldToScreenPoint(head.Position)
-                if onScreen then
-                    local distance = (head.Position - camera.CFrame.Position).Magnitude
-                    if distance < shortestDistance then
-                        closestHead = head
-                        shortestDistance = distance
-                    end
-                end
+            print("  - Has Head:", head ~= nil, "Has Humanoid:", humanoid ~= nil)
+            if humanoid then
+                print("  - Health:", humanoid.Health)
             end
+        else
+            print("  - NO CHARACTER")
         end
     end
-    
-    return closestHead
-end
-
-game:GetService("RunService").RenderStepped:Connect(function()
-    if AimbotEnabled and game.Players.LocalPlayer.Team == game.Teams.Sniper then
-        local target = GetClosestEnemyHead()
-        if target then
-            local camera = workspace.CurrentCamera
-            local targetCFrame = CFrame.new(camera.CFrame.Position, target.Position)
-            
-            -- Smoothly interpolate camera
-            camera.CFrame = camera.CFrame:Lerp(targetCFrame, AimbotSmoothing)
-        end
-    end
+    print("=== END TEST ===")
 end)
 
 -- PLAYER TP SECTION (FIXED - removed Refresh calls)
