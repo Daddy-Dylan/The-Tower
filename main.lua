@@ -311,60 +311,142 @@ end)
 -- AIMBOT SECTION
 local aimbotSection = SniperTab:CreateSector("Aimbot", "left")
 
-aimbotSection:AddLabel("Auto-aim at closest enemy head")
+local Aimbot = {
+    Enabled = false,
+    Smoothing = 0.08,
+    FOV = 180,
+    AutoZero = true,
+    TargetPriority = "Closest",
+    Keybind = Enum.KeyCode.Q
+}
 
-local AimbotEnabled = false
-local AimbotSmoothing = 0.2
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
 
-aimbotSection:AddToggle("Enable Aimbot", false, function(state)
-    AimbotEnabled = state
-    print("Aimbot:", state and "ON" or "OFF")
-end)
+local Turret = nil
+pcall(function() Turret = require(game.ReplicatedStorage.Turret) end)
 
-aimbotSection:AddSlider("Smoothing", 0, 1, 100, 20, function(value)
-    AimbotSmoothing = value / 100
-end)
+local function GetActiveTurret()
+    if not Turret then return nil end
+    local turrets = Turret:GetTurrets()
+    return #turrets > 0 and turrets[1] or nil
+end
 
-local function GetClosestEnemyHead()
-    local closestHead = nil
-    local shortestDistance = math.huge
-    local localPlayer = game.Players.LocalPlayer
-    local camera = workspace.CurrentCamera
+local function GetRunners()
+    local targets = {}
+    local sniperTeam = game.Teams.Sniper
     
-    for _, player in pairs(game.Players:GetPlayers()) do
-        -- Only target runners (enemies)
-        if player ~= localPlayer and player.Team and player.Team.Name == "Runner" and player.Character then
+    for _, player in pairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+        if not player.Character then continue end
+        
+        local team = player.Team
+        if not team or team ~= sniperTeam then
             local head = player.Character:FindFirstChild("Head")
             local humanoid = player.Character:FindFirstChild("Humanoid")
             
             if head and humanoid and humanoid.Health > 0 then
-                local distance = (head.Position - camera.CFrame.Position).Magnitude
-                print("🎯 Found runner:", player.Name, "Distance:", distance)
-                if distance < shortestDistance then
-                    closestHead = head
-                    shortestDistance = distance
-                end
+                table.insert(targets, {
+                    Player = player,
+                    Head = head,
+                    Position = head.Position
+                })
             end
         end
     end
     
-    return closestHead
+    return targets
 end
 
-game:GetService("RunService").RenderStepped:Connect(function()
-    if AimbotEnabled and game.Players.LocalPlayer.Team and game.Players.LocalPlayer.Team.Name == "Sniper" then
-        local target = GetClosestEnemyHead()
-        if target then
-            local camera = workspace.CurrentCamera
-            local targetCFrame = CFrame.new(camera.CFrame.Position, target.Position)
-            camera.CFrame = camera.CFrame:Lerp(targetCFrame, AimbotSmoothing)
+local function GetBestTarget(targets)
+    if #targets == 0 then return nil end
+    
+    local turret = GetActiveTurret()
+    if not turret then return nil end
+    
+    local camera = Workspace.CurrentCamera
+    local screenCenter = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+    
+    table.sort(targets, function(a, b)
+        local aDist = (a.Position - turret:GetViewport().Position).Magnitude
+        local bDist = (b.Position - turret:GetViewport().Position).Magnitude
+        return aDist < bDist
+    end)
+    
+    for _, target in pairs(targets) do
+        local screenPos, onScreen = camera:WorldToViewportPoint(target.Position)
+        if onScreen then
+            local screenPoint = Vector2.new(screenPos.X, screenPos.Y)
+            local screenDist = (screenPoint - screenCenter).Magnitude
+            
+            if screenDist <= Aimbot.FOV then
+                return target
+            end
         end
+    end
+    
+    return nil
+end
+
+local function AimAtTarget(target)
+    if not target then return end
+    
+    local turret = GetActiveTurret()
+    if not turret then return end
+    
+    local currentCF = turret:GetViewport()
+    local direction = (target.Position - currentCF.Position).Unit
+    
+    local desiredCF = CFrame.new(currentCF.Position, currentCF.Position + direction)
+    turret:SetRotation(desiredCF.LookVector)
+end
+
+RunService.RenderStepped:Connect(function()
+    if not Aimbot.Enabled then return end
+    
+    if not LocalPlayer.Team or LocalPlayer.Team.Name ~= "Sniper" then
+        Aimbot.Enabled = false
+        return
+    end
+    
+    local targets = GetRunners()
+    local bestTarget = GetBestTarget(targets)
+    
+    if bestTarget then
+        AimAtTarget(bestTarget)
     end
 end)
 
-aimbotSection:AddLabel("✅ Aimbot ready!")
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Aimbot.Keybind then
+        Aimbot.Enabled = not Aimbot.Enabled
+    end
+end)
 
--- PLAYER TP SECTION (FIXED - removed Refresh calls)
+aimbotSection:AddToggle("Enable Aimbot", false, function(state)
+    Aimbot.Enabled = state
+end)
+
+aimbotSection:AddSlider("Smoothing", 1, 8, 30, 1, function(value)
+    Aimbot.Smoothing = value / 100
+end)
+
+aimbotSection:AddSlider("FOV", 50, 180, 500, 10, function(value)
+    Aimbot.FOV = value
+end)
+
+aimbotSection:AddKeybind("Toggle Key", Enum.KeyCode.Q, function(key)
+    Aimbot.Keybind = key
+end, function()
+    Aimbot.Enabled = not Aimbot.Enabled
+end)
+
+aimbotSection:AddLabel("Ready")
+-- PLAYER TP SECTION 
 local playerTpSection = MiscTab:CreateSector("Player TP", "left")
 local selectedPlayerName = nil
 
