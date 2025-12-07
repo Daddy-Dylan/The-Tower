@@ -313,10 +313,8 @@ local aimbotSection = SniperTab:CreateSector("Aimbot", "left")
 
 local Aimbot = {
     Enabled = false,
-    Smoothing = 0.08,
-    FOV = 180,
-    AutoZero = true,
-    TargetPriority = "Closest",
+    Smoothing = 0.1,
+    FOV = 200,
     Keybind = Enum.KeyCode.Q
 }
 
@@ -325,9 +323,13 @@ local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
 
+-- Get the Turret module
 local Turret = nil
-pcall(function() Turret = require(game.ReplicatedStorage.Turret) end)
+pcall(function()
+    Turret = require(game.ReplicatedStorage.Turret)
+end)
 
 local function GetActiveTurret()
     if not Turret then return nil end
@@ -337,14 +339,13 @@ end
 
 local function GetRunners()
     local targets = {}
-    local sniperTeam = game.Teams.Sniper
     
     for _, player in pairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
         if not player.Character then continue end
         
-        local team = player.Team
-        if not team or team ~= sniperTeam then
+        -- Only target runners (not snipers)
+        if player.Team and player.Team.Name == "Runner" then
             local head = player.Character:FindFirstChild("Head")
             local humanoid = player.Character:FindFirstChild("Humanoid")
             
@@ -361,81 +362,101 @@ local function GetRunners()
     return targets
 end
 
-local function GetBestTarget(targets)
+local function GetClosestToCrosshair(targets)
     if #targets == 0 then return nil end
     
-    local turret = GetActiveTurret()
-    if not turret then return nil end
-    
-    local camera = Workspace.CurrentCamera
-    local screenCenter = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
-    
-    table.sort(targets, function(a, b)
-        local aDist = (a.Position - turret:GetViewport().Position).Magnitude
-        local bDist = (b.Position - turret:GetViewport().Position).Magnitude
-        return aDist < bDist
-    end)
+    local screenCenter = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    local closestTarget = nil
+    local closestDistance = math.huge
     
     for _, target in pairs(targets) do
-        local screenPos, onScreen = camera:WorldToViewportPoint(target.Position)
+        local screenPos, onScreen = Camera:WorldToViewportPoint(target.Position)
+        
         if onScreen then
             local screenPoint = Vector2.new(screenPos.X, screenPos.Y)
-            local screenDist = (screenPoint - screenCenter).Magnitude
+            local distance = (screenPoint - screenCenter).Magnitude
             
-            if screenDist <= Aimbot.FOV then
-                return target
+            if distance < closestDistance and distance <= Aimbot.FOV then
+                closestTarget = target
+                closestDistance = distance
             end
         end
     end
     
-    return nil
+    return closestTarget
 end
 
+local function CalculateRotationToTarget(targetPosition)
+    local turret = GetActiveTurret()
+    if not turret then return 0, 0 end
+    
+    local turretCF = turret:GetViewport()
+    local turretPos = turretCF.Position
+    
+    -- Calculate direction from turret to target
+    local direction = (targetPosition - turretPos).Unit
+    
+    -- Convert direction to rotation angles
+    local horizontalAngle = math.atan2(direction.X, direction.Z)
+    local verticalAngle = math.asin(-direction.Y)
+    
+    return horizontalAngle, verticalAngle
+end
+
+-- Main aiming function
 local function AimAtTarget(target)
     if not target then return end
     
+    local horizontal, vertical = CalculateRotationToTarget(target.Position)
+    
+    -- Apply smoothing
+    local currentHorizontal, currentVertical = 0, 0
+    
+    -- This is the key: Set the turret rotation directly
     local turret = GetActiveTurret()
-    if not turret then return end
-    
-    local currentCF = turret:GetViewport()
-    local direction = (target.Position - currentCF.Position).Unit
-    
-    local desiredCF = CFrame.new(currentCF.Position, currentCF.Position + direction)
-    turret:SetRotation(desiredCF.LookVector)
+    if turret then
+        -- Use the Turret module's SetRotation method
+        turret:SetRotation(horizontal, vertical)
+    end
 end
 
 RunService.RenderStepped:Connect(function()
     if not Aimbot.Enabled then return end
     
+    -- Only work when player is sniper
     if not LocalPlayer.Team or LocalPlayer.Team.Name ~= "Sniper" then
         Aimbot.Enabled = false
         return
     end
     
     local targets = GetRunners()
-    local bestTarget = GetBestTarget(targets)
+    local closestTarget = GetClosestToCrosshair(targets)
     
-    if bestTarget then
-        AimAtTarget(bestTarget)
+    if closestTarget then
+        AimAtTarget(closestTarget)
     end
 end)
 
+-- Keybind toggle
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
+    
     if input.KeyCode == Aimbot.Keybind then
         Aimbot.Enabled = not Aimbot.Enabled
+        print("Aimbot:", Aimbot.Enabled and "ON" or "OFF")
     end
 end)
 
+-- UI Controls
 aimbotSection:AddToggle("Enable Aimbot", false, function(state)
     Aimbot.Enabled = state
 end)
 
-aimbotSection:AddSlider("Smoothing", 1, 8, 30, 1, function(value)
+aimbotSection:AddSlider("Smoothing %", 1, 10, 50, 1, function(value)
     Aimbot.Smoothing = value / 100
 end)
 
-aimbotSection:AddSlider("FOV", 50, 180, 500, 10, function(value)
+aimbotSection:AddSlider("FOV Size", 50, 200, 500, 10, function(value)
     Aimbot.FOV = value
 end)
 
@@ -445,7 +466,21 @@ end, function()
     Aimbot.Enabled = not Aimbot.Enabled
 end)
 
-aimbotSection:AddLabel("Ready")
+aimbotSection:AddButton("Test", function()
+    print("Turret exists:", GetActiveTurret() ~= nil)
+    
+    local targets = GetRunners()
+    print("Runners found:", #targets)
+    
+    if #targets > 0 then
+        local closest = GetClosestToCrosshair(targets)
+        if closest then
+            print("Targeting:", closest.Player.Name)
+        end
+    end
+end)
+
+aimbotSection:AddLabel("Ready for The Tower")
 -- PLAYER TP SECTION 
 local playerTpSection = MiscTab:CreateSector("Player TP", "left")
 local selectedPlayerName = nil
